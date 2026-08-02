@@ -1,0 +1,16 @@
+{
+  "name": "azure-feedback-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.2.1",
+    "mssql": "^12.7.0"
+  }
+}

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Azure SQL Feedback Guestbook</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 760px;
+      margin: 40px auto;
+      padding: 0 20px;
+      background: #f5f8fc;
+      color: #17233a;
+    }
+
+    h1 {
+      color: #0078d4;
+      margin-bottom: 6px;
+    }
+
+    .card {
+      background: white;
+      padding: 24px;
+      margin: 20px 0;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+
+    label, input, textarea, button {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    label {
+      font-weight: bold;
+      margin-top: 14px;
+    }
+
+    input, textarea {
+      margin-top: 6px;
+      padding: 10px;
+      border: 1px solid #a6a6a6;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+
+    button {
+      margin-top: 18px;
+      padding: 12px;
+      border: 0;
+      border-radius: 5px;
+      background: #0078d4;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #005ea8;
+    }
+
+    #result {
+      min-height: 24px;
+      font-weight: bold;
+      margin-top: 16px;
+    }
+
+    .entry {
+      border-top: 1px solid #ddd;
+      padding: 16px 0;
+    }
+
+    .entry:first-child {
+      border-top: 0;
+    }
+
+    .entry p {
+      white-space: pre-wrap;
+    }
+
+    .date {
+      color: #5f6368;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Azure SQL Feedback Guestbook</h1>
+  <p>This form stores visitor feedback in Azure SQL Database.</p>
+
+  <section class="card">
+    <h2>Leave Feedback</h2>
+
+    <form id="feedbackForm">
+      <label for="name">Name *</label>
+      <input id="name" maxlength="100" required />
+
+      <label for="email">Email</label>
+      <input id="email" type="email" maxlength="255" />
+
+      <label for="message">Message *</label>
+      <textarea id="message" maxlength="1000" rows="5" required></textarea>
+
+      <button type="submit">Save Feedback</button>
+    </form>
+
+    <p id="result"></p>
+  </section>
+
+  <section class="card">
+    <h2>Saved Feedback</h2>
+    <div id="entries">Loading entries from Azure SQL Database...</div>
+  </section>
+
+  <script>
+    const form = document.getElementById("feedbackForm");
+    const result = document.getElementById("result");
+    const entries = document.getElementById("entries");
+
+    function escapeHtml(value) {
+      const div = document.createElement("div");
+      div.textContent = value || "";
+      return div.innerHTML;
+    }
+
+    async function loadFeedback() {
+      try {
+        const response = await fetch("/api/feedback");
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Could not load feedback.");
+        }
+
+        if (data.length === 0) {
+          entries.innerHTML = "<p>No feedback has been submitted yet.</p>";
+          return;
+        }
+
+        entries.innerHTML = data.map(item => `
+          <article class="entry">
+            <strong>${escapeHtml(item.VisitorName)}</strong>
+            ${item.Email ? `<span> (${escapeHtml(item.Email)})</span>` : ""}
+            <p>${escapeHtml(item.Message)}</p>
+            <div class="date">
+              Submitted: ${new Date(item.SubmittedAt).toLocaleString()}
+            </div>
+          </article>
+        `).join("");
+      } catch (error) {
+        entries.innerHTML = `<p>Database entries could not be loaded: ${escapeHtml(error.message)}</p>`;
+      }
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      result.textContent = "Saving feedback...";
+
+      try {
+        const response = await fetch("/api/feedback", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            name: document.getElementById("name").value,
+            email: document.getElementById("email").value,
+            message: document.getElementById("message").value
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Could not save feedback.");
+        }
+
+        result.textContent = data.message;
+        form.reset();
+        await loadFeedback();
+      } catch (error) {
+        result.textContent = error.message;
+      }
+    });
+
+    loadFeedback();
+  </script>
+</body>
+</html>
